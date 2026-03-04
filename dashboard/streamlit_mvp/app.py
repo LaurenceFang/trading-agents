@@ -1,7 +1,5 @@
 from __future__ import annotations
-
-"""主入口 - Streamlit MVP 仪表盘（指标 #9）"""
-
+"""主入口 - Streamlit MVP 付表盘（指标 #9）"""
 import logging
 import os
 import sys
@@ -56,17 +54,20 @@ STATUS_ICONS = {
     "OFFLINE": "⚪ OFFLINE",
 }
 
-col_status, col_halt, col_resume = st.columns([3, 1, 1])
+col_status, col_halt, col_flatten, col_resume = st.columns([3, 1, 1, 1])
 with col_status:
     label = STATUS_ICONS.get(risk_state, f"❓ {risk_state}")
     st.markdown(f"## 系统状态：{label}")
-
 with col_halt:
     if st.button("🔴 冻结交易", use_container_width=True):
         result = _cmd_handle("HALT", reason="manual")
         logger.info("HALT result: %s", result)
         st.rerun()
-
+with col_flatten:
+    if st.button("🚨 一键平仓", use_container_width=True, type="primary"):
+        result = _cmd_handle("FLATTEN_ALL")
+        logger.info("FLATTEN_ALL result: %s", result)
+        st.rerun()
 with col_resume:
     if st.button("🟢 恢复交易", use_container_width=True):
         result = _cmd_handle("RESUME")
@@ -79,6 +80,10 @@ with col_resume:
 if risk_state == "VENUE_HALT":
     st.error("⚠️ 交易已冻结，所有新单将被拒绝")
 
+# 已撤销委托汇总
+canceled = db.get_orders_by_status("CANCELED", limit=200)
+st.caption(f"今日已撤销委托：{len(canceled)} 笔")
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -86,9 +91,11 @@ st.divider()
 # ---------------------------------------------------------------------------
 st.markdown("""
 ### 导航
+- 🔌 **登录连接** → 左侧边栏选择 `00_login_connection`
 - 📊 **交易统计监控** → 左侧边栏选择 `01_monitor`
 - ⚠️ **风控管理** → 左侧边栏选择 `02_risk_control`
-- 📋 **系统日志** → 左侧边栏选择 `03_log_viewer`
+- 📄 **系统日志** → 左侧边栏选择 `03_log_viewer`
+- 📂 **持仓资金** → 左侧边栏选择 `04_positions`
 """)
 
 # ---------------------------------------------------------------------------
