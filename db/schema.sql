@@ -163,3 +163,35 @@ CREATE TABLE IF NOT EXISTS error_log (
 
 CREATE INDEX IF NOT EXISTS idx_error_log_ts
     ON error_log(ts);
+
+-- ============================================
+-- Issue #15: Connection Log (CTP 连接状态)
+-- ============================================
+CREATE TABLE IF NOT EXISTS connection_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts              TEXT NOT NULL,          -- ISO8601 UTC
+    status          TEXT NOT NULL,          -- "CONNECTED" / "DISCONNECTED" / "RECONNECTING"
+    front_addr      TEXT,
+    session_id      TEXT,
+    detail          TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_connection_log_ts
+    ON connection_log(ts);
+
+-- ============================================
+-- Issue #15: Account Info (CTP 账户资金快照)
+-- ============================================
+CREATE TABLE IF NOT EXISTS account_info (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts              TEXT NOT NULL,          -- ISO8601 UTC
+    user_id         TEXT,
+    broker_id       TEXT,
+    trading_day     TEXT,
+    available       REAL DEFAULT 0,
+    margin          REAL DEFAULT 0,
+    equity          REAL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_account_info_ts
+    ON account_info(ts);
