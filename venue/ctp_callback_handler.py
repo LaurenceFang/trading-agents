@@ -342,16 +342,19 @@ class CtpCallbackHandler:
             return
 
         try:
+            from venue.ctp_error_codes import format_ctp_error
+
             order_ref = p_order.get("OrderRef", "")
             error_id = p_rsp_info.get("ErrorID", 0) if p_rsp_info else 0
-            error_msg = p_rsp_info.get("ErrorMsg", "") if p_rsp_info else ""
+            raw_msg = p_rsp_info.get("ErrorMsg", "") if p_rsp_info else ""
+            friendly_msg = format_ctp_error(error_id, raw_msg)
 
             logger.error(
                 "Order insertion failed",
                 extra={
                     "order_ref": order_ref,
                     "error_id": error_id,
-                    "error_msg": error_msg,
+                    "error_msg": friendly_msg,
                 },
             )
 
@@ -367,7 +370,8 @@ class CtpCallbackHandler:
                 raw_response={
                     "error": {
                         "error_id": str(error_id),
-                        "error_msg": error_msg,
+                        "error_msg": friendly_msg,
+                        "raw_ctp_msg": raw_msg,
                     },
                     "ctp_order": p_order,
                 },
@@ -389,16 +393,19 @@ class CtpCallbackHandler:
             return
 
         try:
+            from venue.ctp_error_codes import format_ctp_error
+
             order_ref = p_order_action.get("OrderRef", "")
             error_id = p_rsp_info.get("ErrorID", 0) if p_rsp_info else 0
-            error_msg = p_rsp_info.get("ErrorMsg", "") if p_rsp_info else ""
+            raw_msg = p_rsp_info.get("ErrorMsg", "") if p_rsp_info else ""
+            friendly_msg = format_ctp_error(error_id, raw_msg)
 
             logger.error(
                 "Order action failed",
                 extra={
                     "order_ref": order_ref,
                     "error_id": error_id,
-                    "error_msg": error_msg,
+                    "error_msg": friendly_msg,
                 },
             )
 

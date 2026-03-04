@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -16,6 +17,22 @@ from venue.ctp_callback_handler import CtpCallbackHandler
 from venue.ctp_gateway import CtpGatewayWrapper
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class VenueAccountInfo:
+    """Account balance and margin information from CTP."""
+
+    account_id: str
+    broker_id: str
+    balance: Decimal           # 动态权益
+    available: Decimal         # 可用资金
+    margin: Decimal            # 占用保证金
+    frozen_margin: Decimal     # 冻结保证金
+    frozen_cash: Decimal       # 冻结资金（手续费等）
+    profit_loss: Decimal       # 盯市盈亏
+    commission: Decimal        # 当日手续费
+    updated_at: datetime
 
 
 class CTPAdapter:
@@ -366,6 +383,94 @@ class CTPAdapter:
         finally:
             if hasattr(gateway, "on_rsp_qry_investor_position") and 'original_handler' in locals():
                 gateway.on_rsp_qry_investor_position = original_handler
+
+    async def query_account(self) -> VenueAccountInfo:
+        """Query account balance and margin info from CTP (ReqQryTradingAccount).
+
+        Returns:
+            VenueAccountInfo with balance, available funds, margin, and P&L.
+
+        Raises:
+            ConnectionError: If gateway is not connected.
+            TimeoutError: If query does not complete within 10 seconds.
+            Exception: If CTP returns an error response.
+        """
+        if not self._gateway.is_connected:
+            raise ConnectionError("CTP gateway not connected")
+
+        gateway = self._gateway.get_gateway()
+
+        query_future: asyncio.Future[dict] = asyncio.Future()
+
+        def on_rsp_qry_trading_account(
+            data: dict, error: dict | None, reqid: int, last: bool
+        ) -> None:
+            if not query_future.done():
+                if error and error.get("ErrorID", 0) != 0:
+                    from venue.ctp_error_codes import format_ctp_error
+                    error_id = error.get("ErrorID", 99)
+                    raw_msg = error.get("ErrorMsg", "")
+                    msg = format_ctp_error(error_id, raw_msg)
+                    query_future.set_exception(Exception(f"Query account failed: {msg}"))
+                else:
+                    query_future.set_result(data or {})
+
+        original_handler = None
+        if hasattr(gateway, "on_rsp_qry_trading_account"):
+            original_handler = gateway.on_rsp_qry_trading_account
+            gateway.on_rsp_qry_trading_account = on_rsp_qry_trading_account
+
+        try:
+            req = {
+                "BrokerID": self._config.get("broker_id", ""),
+                "InvestorID": self._config.get("user_id") or os.getenv("CTP_USER_ID", ""),
+                "CurrencyID": "CNY",
+            }
+            gateway.query_account(req, reqid=5)
+
+            try:
+                data = await asyncio.wait_for(query_future, timeout=10.0)
+            except asyncio.TimeoutError:
+                logger.error("Query account timeout")
+                raise TimeoutError("Query account timeout")
+
+            account_id = data.get("AccountID", "")
+            broker_id = data.get("BrokerID", "")
+
+            def to_decimal(val: object) -> Decimal:
+                try:
+                    return Decimal(str(val)) if val not in (None, "", 0) else Decimal("0")
+                except Exception:
+                    return Decimal("0")
+
+            info = VenueAccountInfo(
+                account_id=account_id,
+                broker_id=broker_id,
+                balance=to_decimal(data.get("Balance")),
+                available=to_decimal(data.get("Available")),
+                margin=to_decimal(data.get("CurrMargin")),
+                frozen_margin=to_decimal(data.get("FrozenMargin")),
+                frozen_cash=to_decimal(data.get("FrozenCash")),
+                profit_loss=to_decimal(data.get("PositionProfit")),
+                commission=to_decimal(data.get("Commission")),
+                updated_at=datetime.now(timezone.utc),
+            )
+
+            logger.info(
+                "Account query successful",
+                extra={
+                    "account_id": account_id,
+                    "balance": str(info.balance),
+                    "available": str(info.available),
+                    "margin": str(info.margin),
+                },
+            )
+
+            return info
+
+        finally:
+            if original_handler is not None and hasattr(gateway, "on_rsp_qry_trading_account"):
+                gateway.on_rsp_qry_trading_account = original_handler
 
     async def get_market_status(self, symbol: str) -> BaseMarketStatus:
         """Get market status for a symbol.
