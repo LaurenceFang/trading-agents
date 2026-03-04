@@ -5,7 +5,7 @@ FUTURES ONLY - DO NOT IMPORT CRYPTO MODULES
 AppID: client_aiagentts_1.0.0
 开发人: 方馒涵
 
-启动顺序：StateWriter → EventBus → OutboxDispatcher → CtpAdapter → Streamlit Dashboard
+启动顺序：DB建表 → StateWriter → EventBus → OutboxDispatcher → CtpAdapter → Streamlit Dashboard
 
 使用方式：
     cd <repo_root>
@@ -17,6 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import aiosqlite
 import yaml
 from loguru import logger
 
@@ -24,10 +25,12 @@ from loguru import logger
 from core.event_bus import EventBus
 from core.state_writer import StateWriter
 from core.outbox_dispatcher import OutboxDispatcher
-from venue.ctp_adapter import CtpAdapter  # stub，#13 实现
+from venue.ctp_adapter import CtpAdapter
 
-# ── 配置加载 ─────────────────────────────────────────────────────────────────
+# ── 路径常量 ─────────────────────────────────────────────────────────────────
+REPO_ROOT   = Path(__file__).parent.parent
 CONFIG_PATH = Path(__file__).parent / "config" / "risk_params_futures.yaml"
+SCHEMA_PATH = REPO_ROOT / "db" / "schema.sql"
 
 
 def load_config() -> dict:
@@ -39,18 +42,40 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
+async def init_database(db_path: str) -> None:
+    """创建 data/ 目录并执行 schema.sql 建表（IF NOT EXISTS，安全重入）"""
+    # 自动创建数据库目录
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
+    if not SCHEMA_PATH.exists():
+        logger.error(f"Schema 文件不存在: {SCHEMA_PATH}")
+        sys.exit(1)
+
+    schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.executescript(schema_sql)
+        await db.commit()
+
+    logger.info(f"[Futures] 数据库建表完成: {db_path}")
+
+
 # ── 主启动逻辑 ────────────────────────────────────────────────────────────────
 async def main() -> None:
     logger.info("[Futures] 启动期货交易系统...")
-    logger.info(f"[Futures] AppID: client_aiagentts_1.0.0")
+    logger.info("[Futures] AppID: client_aiagentts_1.0.0")
 
     config = load_config()
     db_path = config.get("db_path", "./data/futures.db")
 
-    # 1. StateWriter
+    # 0. 数据库初始化（建表）
+    logger.info("[Futures] 初始化数据库...")
+    await init_database(db_path)
+
+    # 1. StateWriter——注意: 方法名是 start() 而非 initialize()
     logger.info("[Futures] 初始化 StateWriter...")
     state_writer = StateWriter(db_path=db_path)
-    await state_writer.initialize()
+    await state_writer.start()          # ✅ 正确方法名
 
     # 2. EventBus
     logger.info("[Futures] 初始化 EventBus...")
@@ -65,16 +90,12 @@ async def main() -> None:
     )
 
     # 4. CtpAdapter
-    # Bug1 修复：原代码用关键字参数调用，与 CTPAdapter.__init__(config: dict) 签名不符
-    # 改为将配置项封装为 dict 传入；同时补上原本缺失的 await connect()
     logger.info("[Futures] 初始化 CtpAdapter...")
     ctp_config = {
         "broker_id":  config.get("broker_id", ""),
         "user_id":    config.get("user_id", ""),
         "app_id":     config.get("app_id", "client_aiagentts_1.0.0"),
         "front_addr": config.get("ctp_front_addr", ""),
-        # password / auth_code 优先从 yaml 读取，若为空则 fallback 到环境变量
-        # CTP_PASSWORD / CTP_AUTH_CODE
         "password":   config.get("password", ""),
         "auth_code":  config.get("auth_code", ""),
     }
@@ -84,7 +105,7 @@ async def main() -> None:
     logger.info("[Futures] CTP 连接成功。")
 
     # 5. 启动 Streamlit Dashboard（#15 实现）
-    dashboard_path = Path(__file__).parent.parent / "dashboard" / "app_futures.py"
+    dashboard_path = REPO_ROOT / "dashboard" / "app_futures.py"
     if dashboard_path.exists():
         logger.info("[Futures] 启动 Streamlit Dashboard...")
         subprocess.Popen(
@@ -104,7 +125,7 @@ async def main() -> None:
         logger.info("[Futures] 收到停止信号，正在关闭...")
     finally:
         await ctp_adapter.disconnect()
-        await state_writer.close()
+        await state_writer.stop()       # ✅ 正确方法名
         logger.info("[Futures] 已安全关闭。")
 
 
