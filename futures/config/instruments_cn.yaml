@@ -1,0 +1,88 @@
+instruments:
+  - symbol: rb2510
+    name: 螺纹钢
+    exchange: SHFE
+    product_class: FUTURES
+    currency: CNY
+    lot_size: 10
+    price_tick: 1.0
+    margin_rate: 0.05
+    min_volume: 1
+    max_volume: 500
+    trading_hours:
+      - "09:00-10:15"
+      - "10:30-11:30"
+      - "13:30-15:00"
+    night_trading_hours:
+      - "21:00-23:00"
+    last_trading_day_rule: "合约月份的15日；遇国家法定节假日顺延，春节月份等最后交易日交易所可另行调整并通知。"
+
+  - symbol: ag2510
+    name: 白银
+    exchange: SHFE
+    product_class: FUTURES
+    currency: CNY
+    lot_size: 15
+    price_tick: 1.0
+    margin_rate: 0.04
+    min_volume: 1
+    max_volume: 500
+    trading_hours:
+      - "09:00-10:15"
+      - "10:30-11:30"
+      - "13:30-15:00"
+    night_trading_hours:
+      - "21:00-02:30"
+    last_trading_day_rule: "合约月份的15日；遇国家法定节假日顺延，春节月份等最后交易日交易所可另行调整并通知。"
+
+  - symbol: IF2506
+    name: 沪深300股指期货
+    exchange: CFFEX
+    product_class: FUTURES
+    currency: CNY
+    lot_size: 300
+    price_tick: 0.2
+    margin_rate: 0.08
+    min_volume: 1
+    max_volume: 100
+    trading_hours:
+      - "09:30-11:30"
+      - "13:00-15:00"
+    night_trading_hours: []
+    last_trading_day_rule: "合约到期月份的第三个周五；若为法定节假日或因异常情况未交易，则顺延至下一交易日作为最后交易日（交割日）。"
+
+  - symbol: cu2506
+    name: 铜
+    exchange: SHFE
+    product_class: FUTURES
+    currency: CNY
+    lot_size: 5
+    price_tick: 10.0
+    margin_rate: 0.05
+    min_volume: 1
+    max_volume: 500
+    trading_hours:
+      - "09:00-10:15"
+      - "10:30-11:30"
+      - "13:30-15:00"
+    night_trading_hours:
+      - "21:00-01:00"
+    last_trading_day_rule: "合约月份的15日；遇国家法定节假日顺延，春节月份等最后交易日交易所可另行调整并通知。"
+
+  - symbol: au2506
+    name: 黄金
+    exchange: SHFE
+    product_class: FUTURES
+    currency: CNY
+    lot_size: 1000
+    price_tick: 0.02
+    margin_rate: 0.04
+    min_volume: 1
+    max_volume: 500
+    trading_hours:
+      - "09:00-10:15"
+      - "10:30-11:30"
+      - "13:30-15:00"
+    night_trading_hours:
+      - "21:00-02:30"
+    last_trading_day_rule: "合约月份的15日；遇国家法定节假日顺延，春节月份等最后交易日交易所可另行调整并通知。"
