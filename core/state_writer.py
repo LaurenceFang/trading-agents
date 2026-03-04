@@ -284,3 +284,43 @@ class StateWriter:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.stop()
+
+    # ------------------------------------------------------------------
+    # Issue #14: Query methods (sync-style wrappers, append-only)
+    # ------------------------------------------------------------------
+
+    async def query_monitor_log(self, limit: int = 100) -> list[dict]:
+        """查询 monitor_log 表最近 N 条记录。"""
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
+        rows: list[dict] = []
+        async with self._db.execute(
+            "SELECT * FROM monitor_log ORDER BY ts DESC LIMIT ?", (limit,)
+        ) as cursor:
+            async for row in cursor:
+                rows.append(dict(row))
+        return rows
+
+    async def query_system_log(self, limit: int = 100) -> list[dict]:
+        """查询 system_log 表最近 N 条记录。"""
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
+        rows: list[dict] = []
+        async with self._db.execute(
+            "SELECT * FROM system_log ORDER BY ts DESC LIMIT ?", (limit,)
+        ) as cursor:
+            async for row in cursor:
+                rows.append(dict(row))
+        return rows
+
+    async def query_error_log(self, limit: int = 100) -> list[dict]:
+        """查询 error_log 表最近 N 条记录。"""
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
+        rows: list[dict] = []
+        async with self._db.execute(
+            "SELECT * FROM error_log ORDER BY ts DESC LIMIT ?", (limit,)
+        ) as cursor:
+            async for row in cursor:
+                rows.append(dict(row))
+        return rows
