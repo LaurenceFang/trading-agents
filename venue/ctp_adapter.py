@@ -530,3 +530,45 @@ class CTPAdapter:
             status: Dictionary with trade details.
         """
         logger.info(f"Trade update: {status}")
+
+    # ------------------------------------------------------------------
+    # Issue #14: Error log callbacks (append-only, no modification to existing logic)
+    # ------------------------------------------------------------------
+
+    def _write_error_log_async(self, error_id: int, error_msg: str, context: str) -> None:
+        """异步写入 error_log，仅在 self._state_writer 不为 None 时执行。"""
+        if self._state_writer is None:
+            return
+        from core.state_schema import ErrorLogEntry
+        from datetime import datetime, timezone
+        entry = ErrorLogEntry(
+            ts=datetime.now(timezone.utc),
+            error_id=error_id,
+            error_msg=error_msg,
+            context=context,
+        )
+        asyncio.create_task(self._state_writer.write_error_log(entry))
+
+    def on_rsp_error(self, error_id: int, error_msg: str, context_hint: str = "OnRspError") -> None:
+        """安全包装 CTP OnRspError 回调，写入 error_log。"""
+        if self._state_writer is None:
+            return
+        from venue.ctp_error_codes import CTP_ERROR_MAP
+        formatted = CTP_ERROR_MAP.get(error_id, ("未知错误", error_msg))[1]
+        self._write_error_log_async(
+            error_id=error_id,
+            error_msg=formatted,
+            context=f"{context_hint}",
+        )
+
+    def on_err_rtn_order(self, error_id: int, error_msg: str, context_hint: str = "OnErrRtnOrder") -> None:
+        """安全包装 CTP OnErrRtnOrder 回调，写入 error_log。"""
+        if self._state_writer is None:
+            return
+        from venue.ctp_error_codes import CTP_ERROR_MAP
+        formatted = CTP_ERROR_MAP.get(error_id, ("未知错误", error_msg))[1]
+        self._write_error_log_async(
+            error_id=error_id,
+            error_msg=formatted,
+            context=f"{context_hint}",
+        )
