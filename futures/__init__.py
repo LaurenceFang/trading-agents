@@ -6,5 +6,5 @@ futures/ — 期货专用模块
 CI 会自动检查并阻止违规导入（见 .github/workflows/futures_isolation_check.yml）。
 
 AppID: client_aiagentts_1.0.0
-开发人: 方馒涵
+开发人：方钰涵
 """
