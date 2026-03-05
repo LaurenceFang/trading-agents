@@ -10,7 +10,8 @@
 app_id: client_aiagentts_1.0.0
 broker_id: "9999"          # 东证期货 broker_id
 user_id: "256354"          # SimNow 仿真账号
-ctp_front_addr: "tcp://180.168.146.187:10130"  # SimNow 7x24 仿真前置地址
+ctp_front_addr: "tcp://182.254.243.31:40001"  # SimNow 第二套环境 7x24 Trade Front
+ctp_md_front_addr: "tcp://182.254.243.31:40011"  # SimNow 第二套环境 7x24 Market Front
 
 # ── CTP 登录凭证 ────────────────────────────────────────────────
 #
